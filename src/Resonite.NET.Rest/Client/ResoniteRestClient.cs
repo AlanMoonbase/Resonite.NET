@@ -20,10 +20,22 @@ namespace Resonite.NET.Rest.Client
 
         public async Task<UserSession> LoginAsync(LoginInfo loginInfo)
         {
+            Log("Resonite.NET V0.0.1");
+            Log("Generating Machine ID");
+
+            string machineId = GenerateRandomMachineId();
+
+            Log($"Generated Machine ID '{machineId}'");
+            Log("Generating UID");
+
+            string uid = GenerateUID(machineId);
+
+            Log($"Generated UID '{uid}'");
+
             var client = new RestClient(RequestOptions);
             RestRequest request = new RestRequest("userSessions");
             request.AddBody(loginInfo);
-            request.AddHeader("UID", GenerateSha256("GabbaGoo"));
+            request.AddHeader("UID", GenerateUID(machineId));
             RestResponse response = await client.PostAsync(request);
 
             UserSession? userSession = null;
@@ -32,6 +44,9 @@ namespace Resonite.NET.Rest.Client
             else userSession = new UserSession();
 
             if (userSession != null) CurrentUserSession = userSession;
+
+            CurrentUserSession.MachineId = machineId;
+            CurrentUserSession.UID = uid;
 
             return CurrentUserSession;
         }
@@ -45,18 +60,31 @@ namespace Resonite.NET.Rest.Client
             else return new User(); // return empty user
         }
 
-        private string GenerateSha256(string text)
+        private static string GenerateRandomMachineId()
         {
-            var sb = new StringBuilder();
-            using (var hash = SHA256.Create())
+            const string characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_";
+            var random = new Random();
+            var result = new char[128];
+            for (int i = 0; i < result.Length; i++)
             {
-                var result = hash.ComputeHash(Encoding.UTF8.GetBytes(text));
-                for (int i = 0; i < result.Length; i++)
-                {
-                    sb.Append(result[i].ToString("x2"));
-                }
+                result[i] = characters[random.Next(characters.Length)];
             }
-            return sb.ToString();
+            return new string(result);
+        }
+
+        private static string GenerateUID(string machineId)
+        {
+            using (var sha256 = SHA256.Create())
+            {
+                var data = Encoding.UTF8.GetBytes("ResoniteNETApp-" + machineId);
+                var hash = sha256.ComputeHash(data);
+                return BitConverter.ToString(hash).Replace("-", "").ToUpper();
+            }
+        }
+
+        private void Log(string message)
+        {
+            Console.WriteLine($"[REST] [{DateTime.UtcNow}] " + message);
         }
     }
 }

@@ -13,5 +13,8 @@ namespace Resonite.NET.Core.Models
         public string UserId { get; set; } = string.Empty;
         [JsonPropertyName("token")]
         public string Token { get; set; } = string.Empty;
+
+        public string MachineId {  get; set; } = string.Empty;
+        public string UID { get; set; } = string.Empty;
     }
 }

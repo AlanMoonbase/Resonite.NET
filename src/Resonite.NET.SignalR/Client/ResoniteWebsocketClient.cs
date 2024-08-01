@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -22,7 +23,7 @@ namespace Resonite.NET.SignalR.Client
 
         public UserStatus CurrentUserStatus { get; set; } = new UserStatus();
 
-        public async Task<bool> StartAsync(UserSession userSession, string initialStatus = "Online", string appVersion = "Resonite.NET Bot")
+        public async Task<bool> StartAsync(UserSession userSession, string initialStatus = UserStatusType.Online, string appVersion = "Resonite.NET 0.0.1")
         {
             if (HubConnection == null)
             {
@@ -33,8 +34,7 @@ namespace Resonite.NET.SignalR.Client
                 {
                     options.Headers = new Dictionary<string, string>
                     {
-                        { "Authorization", $"res {userSession.UserId}:token={userSession.Token}" },
-                        { "UID", $"{Guid.NewGuid()}" }
+                        { "Authorization", $"res {userSession.UserId}:{userSession.Token}" }
                     };
                 });
                 // create connection
@@ -75,30 +75,16 @@ namespace Resonite.NET.SignalR.Client
             return HubConnection.State == HubConnectionState.Connected;
         }
 
-        private Task BroadcastStatus()
-        {
-            // set datetime properties to now
-            CurrentUserStatus.LastStatusChange = DateTime.UtcNow;
-            CurrentUserStatus.LastPrecenseTimeStamp = DateTime.UtcNow;
-
-            // set status to current user status
-            HubConnection.SendAsync("BroadcastStatus", CurrentUserStatus, new UserGroup
-            {
-                Group = 1,
-                TargetIds = null
-            });
-
-            Log("BroadcastStatus");
-
-            return Task.CompletedTask;
-        }
-
         public async Task StopAsync()
         {
             if (HubConnection != null)
             {
                 if (HubConnection.State == HubConnectionState.Connected || HubConnection.State == HubConnectionState.Connecting)
                 {
+                    // set user to offline
+                    CurrentUserStatus.OnlineStatus = UserStatusType.Offline;
+                    await BroadcastStatus();
+
                     Log("Stopping Connection");
                     // stop hub connection
                     await HubConnection.StopAsync();
@@ -114,6 +100,10 @@ namespace Resonite.NET.SignalR.Client
             {
                 if (HubConnection.State == HubConnectionState.Connected || HubConnection.State == HubConnectionState.Connecting)
                 {
+                    // set user to offline
+                    CurrentUserStatus.OnlineStatus = UserStatusType.Offline;
+                    await BroadcastStatus();
+
                     Log("Stopping Connection");
                     // stop connection before disposing to ensure proper events on server side
                     await HubConnection.StopAsync();
@@ -128,6 +118,31 @@ namespace Resonite.NET.SignalR.Client
                 await HubConnection.DisposeAsync();
             }
             else throw new InvalidOperationException("Hub Connection Is Not Initialized Or Connection Is Not Disposable");
+        }
+
+        public async Task SetUserStatus(string statusType)
+        {
+            // set current user stautus type
+            CurrentUserStatus.OnlineStatus = statusType;
+
+            // force status change
+            await BroadcastStatus();
+        }
+
+        private Task BroadcastStatus()
+        {
+            // set datetime properties to now
+            CurrentUserStatus.LastStatusChange = DateTime.UtcNow;
+            CurrentUserStatus.LastPrecenseTimeStamp = DateTime.UtcNow;
+
+            // set status to current user status
+            HubConnection.SendAsync("BroadcastStatus", CurrentUserStatus, new UserGroup
+            {
+                Group = 1,
+                TargetIds = null
+            });
+
+            return Task.CompletedTask;
         }
 
         private void Log(string message)

@@ -26,6 +26,14 @@ namespace Resonite.NET.SignalR.Client
         /// </summary>
         /// <returns>A ``bool`` Indicating Whether Or Not The Client Is Connected</returns>
         public Task<bool> StartAsync(UserSession userSession, string initialStatus = "", string appVersion = "");
+
+        /// <summary>
+        /// Set The User Status To The Specified Type (Refer To UserStatusType Class For Type Constants)
+        /// </summary>
+        /// <param name="statusType">The Type Of Status To Set The User To</param>
+        /// <returns>Completed Task</returns>
+        public Task SetUserStatus(string statusType);
+
         /// <summary>
         /// Stop The Connection To The SignalR Hub If Client Is Connected
         /// </summary>

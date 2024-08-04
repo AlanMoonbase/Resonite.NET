@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR.Client;
 using Resonite.NET.Core.Models;
+using Resonite.NET.SignalR.Events;
 using Resonite.NET.SignalR.Schema;
 
 namespace Resonite.NET.SignalR.Client
@@ -35,8 +36,23 @@ namespace Resonite.NET.SignalR.Client
         public Task SetUserStatus(string statusType);
 
         /// <summary>
+        /// Send A Message To The Given User ID
+        /// </summary>
+        /// <param name="ownerSession">The UserSession That Owns This Message, Usually The "CurrentUserSession" From Your Rest Client Instance</param>
+        /// <param name="userId">The User ID For The User You Want To Send A Message To</param>
+        /// <param name="content">The Content Of The Message</param>
+        /// <param name="contentType">The Type Of Content Within The Content Parameter (Possible Types - Text, Object, Sound, SessionInvite)</param>
+        /// <returns>Completed Task</returns>
+        public Task SendMessage(UserSession ownerSession, string userId, string content, string contentType);
+
+        /// <summary>
         /// Stop The Connection To The SignalR Hub If Client Is Connected
         /// </summary>
         public Task StopAsync();
+
+        /// <summary>
+        /// Event Thats Fired When The Client Receives A Message
+        /// </summary>
+        public event EventHandler<MessageReceivedEventArgs> MessageReceived;
     }
 }

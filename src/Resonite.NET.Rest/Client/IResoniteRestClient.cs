@@ -13,13 +13,12 @@ namespace Resonite.NET.Rest.Client
         public UserSession CurrentUserSession { get; set; }
 
         /// <summary>
-        /// Log Into A Resonite User With The Provided LoginInfo Object. This Will Set The "CurrentAuthToken" Property.
+        /// Logs Into The Resonite API
         /// </summary>
-        /// <param name="info"></param>
-        /// <returns>
-        /// A Completed Task Containing The Current User Session.
-        /// </returns>
-        public Task<UserSession> LoginAsync(LoginInfo info);
+        /// <param name="username">The Username Of The User You Wish To Sign In As</param>
+        /// <param name="password">The Password Of The User You Wish To Sign In As</param>
+        /// <returns>Completed Task With The Current User Session</returns>
+        public Task<UserSession> LoginAsync(string username, string password);
 
         /// <summary>
         /// Get The User With The Provided UserID.

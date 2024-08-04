@@ -8,7 +8,9 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Resonite.NET.Core.Models;
+using Resonite.NET.SignalR.Events;
 using Resonite.NET.SignalR.Schema;
 
 namespace Resonite.NET.SignalR.Client
@@ -17,6 +19,11 @@ namespace Resonite.NET.SignalR.Client
     {
         public IHubConnectionBuilder ConnectionSettings = new HubConnectionBuilder()
             .WithAutomaticReconnect()
+            .ConfigureLogging(logging =>
+            {
+                logging.AddConsole();
+                logging.SetMinimumLevel(LogLevel.Error);
+            })
             .AddJsonProtocol();
 
         public HubConnection HubConnection { get; set; }
@@ -34,7 +41,8 @@ namespace Resonite.NET.SignalR.Client
                 {
                     options.Headers = new Dictionary<string, string>
                     {
-                        { "Authorization", $"res {userSession.UserId}:{userSession.Token}" }
+                        { "Authorization", $"res {userSession.UserId}:{userSession.Token}" },
+                        { "UID", Guid.NewGuid().ToString() }
                     };
                 });
                 // create connection
@@ -43,6 +51,15 @@ namespace Resonite.NET.SignalR.Client
                 Log("Registering Events");
                 // register events
                 HubConnection.Closed += HubConnection_Closed; // only doing closed for now
+
+                HubConnection.On<Message>("ReceiveMessage", (msg) =>
+                {
+                    Log("ReceiveMessage");
+                    OnMessageReceived(new MessageReceivedEventArgs { Message = msg });
+                });
+                HubConnection.On<SessionInfo>("ReceiveSessionUpdate", (updateData) =>
+                {
+                });
 
                 Log("Starting Connection");
                 // start it
@@ -73,6 +90,37 @@ namespace Resonite.NET.SignalR.Client
 
             // return connection state
             return HubConnection.State == HubConnectionState.Connected;
+        }
+
+        public async Task SetUserStatus(string statusType)
+        {
+            // set current user stautus type
+            CurrentUserStatus.OnlineStatus = statusType;
+
+            // force status change
+            await BroadcastStatus();
+        }
+
+        public async Task SendMessage(UserSession ownerSession, string userId, string content, string contentType)
+        {
+            // construct a message
+            Message message = new Message
+            {
+                Id = "MSG-" + Guid.NewGuid().ToString(),
+                Content = content,
+                SenderId = ownerSession.UserId,
+                RecipientId = userId,
+                SendTime = DateTime.UtcNow,
+                LastUpdateTime = DateTime.UtcNow,
+                MessageType = contentType
+            };
+            
+            // invoke "SendMessage" on server
+            if (HubConnection != null && HubConnection.State == HubConnectionState.Connected)
+            {
+                await HubConnection.InvokeAsync("SendMessage", message);
+            }
+            else throw new InvalidOperationException("Tried To Execute A Function When Hub Wasn't Connected");
         }
 
         public async Task StopAsync()
@@ -118,15 +166,6 @@ namespace Resonite.NET.SignalR.Client
                 await HubConnection.DisposeAsync();
             }
             else throw new InvalidOperationException("Hub Connection Is Not Initialized Or Connection Is Not Disposable");
-        }
-
-        public async Task SetUserStatus(string statusType)
-        {
-            // set current user stautus type
-            CurrentUserStatus.OnlineStatus = statusType;
-
-            // force status change
-            await BroadcastStatus();
         }
 
         private Task BroadcastStatus()
@@ -175,5 +214,15 @@ namespace Resonite.NET.SignalR.Client
 
             return Task.CompletedTask;
         }
+
+        protected virtual void OnMessageReceived(MessageReceivedEventArgs msg)
+        {
+            EventHandler<MessageReceivedEventArgs> handler = MessageReceived;
+            if (handler != null)
+            {
+                handler(this, msg);
+            }
+        }
+        public event EventHandler<MessageReceivedEventArgs> MessageReceived;
     }
 }

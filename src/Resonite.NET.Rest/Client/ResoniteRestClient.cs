@@ -18,7 +18,7 @@ namespace Resonite.NET.Rest.Client
 
         public RestClientOptions RequestOptions = new RestClientOptions("https://api.resonite.com");
 
-        public async Task<UserSession> LoginAsync(LoginInfo loginInfo)
+        public async Task<UserSession> LoginAsync(string username, string password)
         {
             Log("Resonite.NET V0.0.1");
             Log("Generating Machine ID");
@@ -31,6 +31,19 @@ namespace Resonite.NET.Rest.Client
             string uid = GenerateUID(machineId);
 
             Log($"Generated UID '{uid}'");
+
+            // construct login info
+            LoginInfo loginInfo = new LoginInfo
+            {
+                Username = username,
+                Authentication = new Authentication
+                {
+                    Type = "password",
+                    Password = password
+                },
+                RememberMe = false,
+                SecretMachineId = machineId
+            };
 
             var client = new RestClient(RequestOptions);
             RestRequest request = new RestRequest("userSessions");

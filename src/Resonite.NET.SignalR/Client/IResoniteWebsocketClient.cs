@@ -25,7 +25,7 @@ namespace Resonite.NET.SignalR.Client
         /// <summary>
         /// Start Connection To Resonites SignalR Hub Using Microsofts SignalR Client And An Existing User Session
         /// </summary>
-        /// <returns>A ``bool`` Indicating Whether Or Not The Client Is Connected</returns>
+        /// <returns>A bool Indicating Whether Or Not The Client Is Connected</returns>
         public Task<bool> StartAsync(UserSession userSession, string initialStatus = "", string appVersion = "");
 
         /// <summary>
@@ -54,5 +54,10 @@ namespace Resonite.NET.SignalR.Client
         /// Event Thats Fired When The Client Receives A Message
         /// </summary>
         public event EventHandler<MessageReceivedEventArgs> MessageReceived;
+
+        /// <summary>
+        /// Event Thats Fired When The Client Receives A Session Update
+        /// </summary>
+        public event EventHandler<SessionUpdateReceivedEventArgs> SessionUpdateReceived;
     }
 }

@@ -26,5 +26,11 @@ namespace Resonite.NET.Rest.Client
         /// <param name="userId">The UserID Of The User You Want To Get. (Example - "U-{ID}")</param>
         /// <returns>The Completed Task Containing The Retreived User (User Has Empty Params If Not Found).</returns>
         public Task<User?> GetUserAsync(string userId);
+
+        /// <summary>
+        /// Get All Currently Visible Sessions
+        /// </summary>
+        /// <returns>A List Of Session Infos</returns>
+        public Task<List<SessionInfo>> GetAllPublicSessionsAsync();
     }
 }

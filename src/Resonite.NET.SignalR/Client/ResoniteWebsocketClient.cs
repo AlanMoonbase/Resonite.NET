@@ -21,7 +21,7 @@ namespace Resonite.NET.SignalR.Client
             .WithAutomaticReconnect()
             .ConfigureLogging(logging =>
             {
-                logging.AddConsole();
+                logging.AddDebug();
                 logging.SetMinimumLevel(LogLevel.Error);
             })
             .AddJsonProtocol();
@@ -32,6 +32,8 @@ namespace Resonite.NET.SignalR.Client
 
         public async Task<bool> StartAsync(UserSession userSession, string initialStatus = UserStatusType.Online, string appVersion = "Resonite.NET 0.0.1")
         {
+            Log($"Resonite.NET SignalR Client V0.0.1 Is Starting Up");
+
             if (HubConnection == null)
             {
                 Log("Building Connection");
@@ -42,7 +44,7 @@ namespace Resonite.NET.SignalR.Client
                     options.Headers = new Dictionary<string, string>
                     {
                         { "Authorization", $"res {userSession.UserId}:{userSession.Token}" },
-                        { "UID", Guid.NewGuid().ToString() }
+                        { "UID", userSession.UID }
                     };
                 });
                 // create connection
@@ -52,13 +54,22 @@ namespace Resonite.NET.SignalR.Client
                 // register events
                 HubConnection.Closed += HubConnection_Closed; // only doing closed for now
 
-                HubConnection.On<Message>("ReceiveMessage", (msg) =>
+                HubConnection.On<string>("Debug", (dbgmsg) => Debug.WriteLine(dbgmsg));
+                HubConnection.On<Message>("ReceiveMessage", async (msg) =>
                 {
-                    Log("ReceiveMessage");
+                    // always mark message as read
+                    await HubConnection.InvokeAsync("MarkMessagesRead", new MarkMessageReadRequest
+                    {
+                        SenderId = msg.SenderId,
+                        ReadTime = DateTime.UtcNow,
+                        MessageIds = new string[] { msg.Id }
+                    });
+
                     OnMessageReceived(new MessageReceivedEventArgs { Message = msg });
                 });
-                HubConnection.On<SessionInfo>("ReceiveSessionUpdate", (updateData) =>
+                HubConnection.On<SessionInfo>("ReceiveSessionUpdate", (session) =>
                 {
+                    OnSessionUpdateReceived(new SessionUpdateReceivedEventArgs { Session = session });
                 });
 
                 Log("Starting Connection");
@@ -82,7 +93,6 @@ namespace Resonite.NET.SignalR.Client
                     IsMobile = false
                 };
 
-                Log("Starting 'BroadcastStatus' Loop");
                 RecurringTask(() => BroadcastStatus(), 30, new CancellationTokenSource().Token);
                 Log("Ready");
             }
@@ -120,7 +130,7 @@ namespace Resonite.NET.SignalR.Client
             {
                 await HubConnection.InvokeAsync("SendMessage", message);
             }
-            else throw new InvalidOperationException("Tried To Execute A Function When Hub Wasn't Connected");
+            else throw new InvalidOperationException("Hub Connection Not Initialized");
         }
 
         public async Task StopAsync()
@@ -175,7 +185,7 @@ namespace Resonite.NET.SignalR.Client
             CurrentUserStatus.LastPrecenseTimeStamp = DateTime.UtcNow;
 
             // set status to current user status
-            HubConnection.SendAsync("BroadcastStatus", CurrentUserStatus, new UserGroup
+            HubConnection.InvokeAsync("BroadcastStatus", CurrentUserStatus, new UserGroup
             {
                 Group = 1,
                 TargetIds = null
@@ -224,5 +234,16 @@ namespace Resonite.NET.SignalR.Client
             }
         }
         public event EventHandler<MessageReceivedEventArgs> MessageReceived;
+
+
+        protected virtual void OnSessionUpdateReceived(SessionUpdateReceivedEventArgs sessionUpdateReceivedEventArgs)
+        {
+            EventHandler<SessionUpdateReceivedEventArgs> handler = SessionUpdateReceived;
+            if(handler != null)
+            {
+                handler(this, sessionUpdateReceivedEventArgs);
+            }
+        }
+        public event EventHandler<SessionUpdateReceivedEventArgs> SessionUpdateReceived;
     }
 }

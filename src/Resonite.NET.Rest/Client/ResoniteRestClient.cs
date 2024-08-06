@@ -31,6 +31,7 @@ namespace Resonite.NET.Rest.Client
             string uid = GenerateUID(machineId);
 
             Log($"Generated UID '{uid}'");
+            Log($"Attempting Login As '{username}'");
 
             // construct login info
             LoginInfo loginInfo = new LoginInfo
@@ -53,7 +54,10 @@ namespace Resonite.NET.Rest.Client
 
             UserSession? userSession = null;
             if (response != null && response.IsSuccessStatusCode && response.Content != null)
+            {
                 userSession = JsonDocument.Parse(response.Content).RootElement.GetProperty("entity").Deserialize<UserSession>();
+                Log($"Logged In As User '{userSession!.UserId}'");
+            }
             else userSession = new UserSession();
 
             if (userSession != null) CurrentUserSession = userSession;
@@ -71,6 +75,15 @@ namespace Resonite.NET.Rest.Client
             User? retreivedUser = await client.GetAsync<User>($"users/{userId}");
             if (retreivedUser != null) return retreivedUser;
             else return new User(); // return empty user
+        }
+
+        public async Task<List<SessionInfo>> GetAllPublicSessionsAsync()
+        {
+            var client = new RestClient(RequestOptions);
+            if (CurrentUserSession != new UserSession()) client.AddDefaultHeader("Authorization", $"res {CurrentUserSession.UserId}:{CurrentUserSession.Token}");
+            List<SessionInfo>? publicSessions = await client.GetAsync<List<SessionInfo>>("sessions");
+            if (publicSessions != null) return publicSessions;
+            else return new List<SessionInfo>(); // return empty session list
         }
 
         private static string GenerateRandomMachineId()
